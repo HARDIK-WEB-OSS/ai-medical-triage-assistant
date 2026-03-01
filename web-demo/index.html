@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Medical Triage Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --emergency: #FF2D55;
+    --emergency-bg: #1a0008;
+    --emergency-glow: rgba(255,45,85,0.3);
+    --urgent: #FF9F0A;
+    --urgent-bg: #1a0f00;
+    --urgent-glow: rgba(255,159,10,0.3);
+    --safe: #30D158;
+    --safe-bg: #001a08;
+    --safe-glow: rgba(48,209,88,0.3);
+    --bg: #060810;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --border: #21262d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --font: 'Space Grotesk', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(88,166,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(88,166,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .header-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #FF2D55, #FF9F0A);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+    box-shadow: 0 0 24px rgba(255,45,85,0.3);
+  }
+
+  .header-text h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .header-text p {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .offline-badge {
+    margin-left: auto;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: var(--mono);
+    font-weight: 500;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .offline-badge.online {
+    color: var(--safe);
+    border-color: rgba(48,209,88,0.3);
+    background: rgba(48,209,88,0.08);
+  }
+
+  .offline-badge.offline {
+    color: var(--urgent);
+    border-color: rgba(255,159,10,0.3);
+    background: rgba(255,159,10,0.08);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── FORM ── */
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+
+  .form-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 11px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-title::before {
+    content: '';
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 1px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.3px;
+  }
+
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 15px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    width: 100%;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(88,166,255,0.1);
+  }
+
+  textarea {
+    min-height: 100px;
+    resize: vertical;
+    line-height: 1.6;
+  }
+
+  select option { background: var(--surface2); }
+
+  /* Symptom chips */
+  .symptom-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+
+  .chip.selected {
+    background: rgba(88,166,255,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Vitals section */
+  .vitals-toggle {
+    font-size: 13px;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    margin-top: 4px;
+    display: inline-block;
+  }
+
+  .vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  /* Submit button */
+  .btn-assess {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #1a6dff, #0052cc);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: var(--font);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 24px;
+    letter-spacing: 0.3px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-assess:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(26,109,255,0.3); }
+  .btn-assess:active { transform: translateY(0); }
+  .btn-assess:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-assess .spinner {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto;
+  }
+
+  .btn-assess.loading .btn-text { display: none; }
+  .btn-assess.loading .spinner { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RESULT ── */
+  #result { display: none; }
+
+  .result-card {
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card.EMERGENCY {
+    background: var(--emergency-bg);
+    border: 1px solid var(--emergency);
+    box-shadow: 0 0 40px var(--emergency-glow);
+  }
+
+  .result-card.URGENT {
+    background: var(--urgent-bg);
+    border: 1px solid var(--urgent);
+    box-shadow: 0 0 40px var(--urgent-glow);
+  }
+
+  .result-card.NON_URGENT {
+    background: var(--safe-bg);
+    border: 1px solid var(--safe);
+    box-shadow: 0 0 40px var(--safe-glow);
+  }
+
+  .urgency-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .urgency-icon {
+    font-size: 48px;
+    line-height: 1;
+  }
+
+  .urgency-text h2 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -1px;
+  }
+
+  .EMERGENCY .urgency-text h2 { color: var(--emergency); }
+  .URGENT .urgency-text h2 { color: var(--urgent); }
+  .NON_URGENT .urgency-text h2 { color: var(--safe); }
+
+  .urgency-text p {
+    font-size: 14px;
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+
+  .confidence-bar-wrap {
+    margin-bottom: 24px;
+  }
+
+  .confidence-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .confidence-label strong { color: var(--text); }
+
+  .confidence-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .confidence-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .EMERGENCY .confidence-fill { background: var(--emergency); }
+  .URGENT .confidence-fill { background: var(--urgent); }
+  .NON_URGENT .confidence-fill { background: var(--safe); }
+
+  .action-box {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .action-box h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .action-box p {
+    font-size: 15px;
+    line-height: 1.6;
+    font-weight: 500;
+  }
+
+  .explanation-box {
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.75);
+  }
+
+  /* Symptom tags */
+  .symptom-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 16px;
+  }
+
+  .symptom-tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.08);
+    color: var(--text-dim);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* Flags */
+  .flag-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .flag {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .flag.review { background: rgba(255,159,10,0.15); color: var(--urgent); border: 1px solid rgba(255,159,10,0.3); }
+  .flag.offline { background: rgba(88,166,255,0.1); color: var(--accent); border: 1px solid rgba(88,166,255,0.2); }
+  .flag.time { background: rgba(255,255,255,0.05); color: var(--text-dim); border: 1px solid var(--border); font-family: var(--mono); }
+
+  /* Case history */
+  .history-section {
+    margin-top: 40px;
+    border-top: 1px solid var(--border);
+    padding-top: 32px;
+    margin-bottom: 60px;
+  }
+
+  .history-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .history-item:hover { border-color: var(--accent); }
+
+  .history-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .history-dot.EMERGENCY { background: var(--emergency); box-shadow: 0 0 8px var(--emergency); }
+  .history-dot.URGENT { background: var(--urgent); box-shadow: 0 0 8px var(--urgent); }
+  .history-dot.NON_URGENT { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
+
+  .history-meta { flex: 1; }
+  .history-meta strong { font-size: 14px; }
+  .history-meta span { font-size: 12px; color: var(--text-dim); display: block; margin-top: 2px; font-family: var(--mono); }
+
+  .history-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  .history-badge.EMERGENCY { background: rgba(255,45,85,0.15); color: var(--emergency); }
+  .history-badge.URGENT { background: rgba(255,159,10,0.15); color: var(--urgent); }
+  .history-badge.NON_URGENT { background: rgba(48,209,88,0.15); color: var(--safe); }
+
+  /* New case button */
+  .btn-new {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    color: var(--accent);
+    border: 1px dashed rgba(88,166,255,0.4);
+    border-radius: 12px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 16px;
+    margin-bottom: 40px;
+  }
+
+  .btn-new:hover { background: rgba(88,166,255,0.08); border-style: solid; }
+
+  /* Review warning */
+  .review-warning {
+    background: rgba(255,159,10,0.1);
+    border: 1px solid rgba(255,159,10,0.3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--urgent);
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+    .vitals-grid { grid-template-columns: 1fr 1fr; }
+    .urgency-text h2 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-content">
+      <div class="logo">🏥</div>
+      <div class="header-text">
+        <h1>AI Triage Assistant</h1>
+        <p>Rural Healthcare Decision Support · Edge AI</p>
+      </div>
+      <div class="offline-badge online" id="connectivity-badge">
+        <div class="dot"></div>
+        <span id="connectivity-text">Online</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ASSESSMENT FORM -->
+  <div id="form-section">
+    <div class="form-card">
+      <div class="form-title">Patient Assessment</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Patient Age (years)</label>
+          <input type="number" id="age" min="0" max="120" placeholder="e.g. 45" />
+        </div>
+        <div class="form-group">
+          <label>Sex</label>
+          <select id="sex">
+            <option value="">Select...</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group full" style="margin-bottom:16px">
+        <label>Symptom Duration</label>
+        <select id="duration">
+          <option value="">Unknown</option>
+          <option value="1">Less than 1 hour</option>
+          <option value="6">1–6 hours</option>
+          <option value="24">6–24 hours</option>
+          <option value="72">1–3 days</option>
+          <option value="168">More than 3 days</option>
+        </select>
+      </div>
+
+      <div class="form-group full" style="margin-bottom:16px">
+        <label>Chief Complaint (describe symptoms)</label>
+        <textarea id="complaint" placeholder="e.g. Patient has chest pain radiating to left arm with difficulty breathing and sweating...
+
+Hindi: Seene mein dard hai aur saans lene mein takleef ho rahi hai..."></textarea>
+      </div>
+
+      <div class="form-group full" style="margin-bottom:8px">
+        <label>Quick Select — Common Symptoms</label>
+        <div class="symptom-chips" id="chips">
+          <div class="chip" data-sym="chest pain">Chest Pain</div>
+          <div class="chip" data-sym="fever">Fever</div>
+          <div class="chip" data-sym="shortness of breath">Breathless</div>
+          <div class="chip" data-sym="seizure">Seizure</div>
+          <div class="chip" data-sym="unconscious">Unconscious</div>
+          <div class="chip" data-sym="vomiting">Vomiting</div>
+          <div class="chip" data-sym="headache">Headache</div>
+          <div class="chip" data-sym="left arm pain">Left Arm Pain</div>
+          <div class="chip" data-sym="rash">Rash</div>
+          <div class="chip" data-sym="abdominal pain">Abdominal Pain</div>
+          <div class="chip" data-sym="dizziness">Dizziness</div>
+          <div class="chip" data-sym="high fever">High Fever</div>
+          <div class="chip" data-sym="facial drooping">Face Drooping</div>
+          <div class="chip" data-sym="speech difficulty">Speech Problem</div>
+          <div class="chip" data-sym="pregnancy bleeding">Pregnancy Bleeding</div>
+        </div>
+      </div>
+
+      <span class="vitals-toggle" onclick="toggleVitals()">+ Add Vital Signs (optional)</span>
+
+      <div id="vitals-section" style="display:none">
+        <div class="vitals-grid">
+          <div class="form-group">
+            <label>Systolic BP (mmHg)</label>
+            <input type="number" id="systolic" placeholder="120" />
+          </div>
+          <div class="form-group">
+            <label>Heart Rate (bpm)</label>
+            <input type="number" id="heart_rate" placeholder="80" />
+          </div>
+          <div class="form-group">
+            <label>SpO2 (%)</label>
+            <input type="number" id="spo2" placeholder="98" />
+          </div>
+          <div class="form-group">
+            <label>Temperature (°C)</label>
+            <input type="number" id="temp" placeholder="37.0" step="0.1" />
+          </div>
+          <div class="form-group">
+            <label>Resp. Rate (/min)</label>
+            <input type="number" id="rr" placeholder="16" />
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-assess" id="assess-btn" onclick="runAssessment()">
+        <span class="btn-text">▶ Run AI Triage Assessment</span>
+        <div class="spinner"></div>
+      </button>
+    </div>
+  </div>
+
+  <!-- RESULT SECTION -->
+  <div id="result">
+    <div class="result-card" id="result-card">
+      <div class="urgency-banner">
+        <div class="urgency-icon" id="result-icon"></div>
+        <div class="urgency-text">
+          <h2 id="result-level"></h2>
+          <p id="result-subtitle"></p>
+        </div>
+      </div>
+
+      <div class="confidence-bar-wrap">
+        <div class="confidence-label">
+          <span>AI Confidence Score</span>
+          <strong id="confidence-text"></strong>
+        </div>
+        <div class="confidence-bar">
+          <div class="confidence-fill" id="confidence-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="action-box">
+        <h3>Recommended Action</h3>
+        <p id="result-action"></p>
+      </div>
+
+      <div class="action-box">
+        <h3>Clinical Explanation</h3>
+        <div class="explanation-box" id="result-explanation"></div>
+      </div>
+
+      <div id="review-warning" class="review-warning" style="display:none">
+        ⚠️ Low confidence score. <strong style="margin-left:4px">Human review recommended.</strong> Do not rely solely on this assessment — consult a doctor.
+      </div>
+
+      <div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:16px;margin-bottom:8px">Detected Symptoms</div>
+        <div class="symptom-tags" id="result-symptoms"></div>
+      </div>
+
+      <div class="flag-row" id="result-flags"></div>
+    </div>
+
+    <button class="btn-new" onclick="newCase()">+ New Patient Assessment</button>
+  </div>
+
+  <!-- CASE HISTORY -->
+  <div class="history-section">
+    <div class="history-title">Case Log (This Session)</div>
+    <div id="history-list">
+      <div style="color:var(--text-dim);font-size:14px;padding:16px 0">No cases yet. Run an assessment above.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── STATE ──
+let selectedChips = [];
+let sessionCases = [];
+let isOnline = navigator.onLine;
+
+// ── CONNECTIVITY ──
+function updateConnectivity() {
+  isOnline = navigator.onLine;
+  const badge = document.getElementById('connectivity-badge');
+  const text = document.getElementById('connectivity-text');
+  badge.className = 'offline-badge ' + (isOnline ? 'online' : 'offline');
+  text.textContent = isOnline ? 'Online' : 'Offline Mode';
+}
+
+window.addEventListener('online', updateConnectivity);
+window.addEventListener('offline', updateConnectivity);
+updateConnectivity();
+
+// ── CHIPS ──
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const sym = chip.dataset.sym;
+    chip.classList.toggle('selected');
+    if (chip.classList.contains('selected')) {
+      selectedChips.push(sym);
+      appendToComplaint(sym);
+    } else {
+      selectedChips = selectedChips.filter(s => s !== sym);
+    }
+  });
+});
+
+function appendToComplaint(text) {
+  const el = document.getElementById('complaint');
+  const current = el.value.trim();
+  el.value = current ? current + ', ' + text : text;
+}
+
+// ── VITALS TOGGLE ──
+function toggleVitals() {
+  const section = document.getElementById('vitals-section');
+  const toggle = document.querySelector('.vitals-toggle');
+  const visible = section.style.display !== 'none';
+  section.style.display = visible ? 'none' : 'block';
+  toggle.textContent = visible ? '+ Add Vital Signs (optional)' : '− Hide Vital Signs';
+}
+
+// ── SYMPTOM EXTRACTION (Offline JS Mirror of Python Logic) ──
+const SYMPTOM_MAP = {
+  chest_pain: ['chest pain', 'chest ache', 'chest pressure', 'chest tightness', 'seene mein dard'],
+  arm_pain_left: ['left arm pain', 'left arm numbness', 'baaye haath'],
+  jaw_pain: ['jaw pain', 'jaw ache'],
+  shortness_of_breath: ['shortness of breath', 'difficulty breathing', 'breathless', 'can\'t breathe', 'saans'],
+  seizure: ['seizure', 'convulsion', 'fit', 'dauraa'],
+  loss_of_consciousness: ['unconscious', 'fainted', 'unresponsive', 'behosh', 'passed out'],
+  confusion: ['confused', 'disoriented', 'not making sense'],
+  facial_drooping: ['face drooping', 'facial droop', 'mouth twisted'],
+  arm_weakness_sudden: ['arm weakness', 'sudden weakness', 'can\'t lift arm'],
+  speech_difficulty: ['can\'t speak', 'slurred speech', 'speech problem', 'bolne mein'],
+  high_fever: ['high fever', 'very high temperature', '103', '104', '105', 'tez bukhar'],
+  fever_mild: ['fever', 'temperature', 'bukhar'],
+  rash_with_fever: ['rash with fever', 'fever and rash'],
+  rash_petechial: ['petechial', 'purple spots', 'non-blanching'],
+  rash_mild: ['rash', 'skin rash', 'hives', 'daane'],
+  severe_abdominal_pain: ['severe abdominal pain', 'severe stomach pain', 'tez pet dard'],
+  abdominal_pain_mild: ['stomach pain', 'abdominal pain', 'belly pain', 'pet dard'],
+  vomiting_blood: ['vomiting blood', 'blood in vomit'],
+  coughing_blood: ['coughing blood', 'blood in cough'],
+  anaphylaxis_signs: ['anaphylaxis', 'allergic reaction severe', 'tongue swelling', 'face swelling'],
+  throat_swelling: ['throat swelling', 'can\'t swallow', 'throat closing'],
+  very_low_spo2: ['spo2 low', 'oxygen low', 'spo2 below 90'],
+  altered_mental_status: ['not responding', 'barely conscious', 'drowsy', 'lethargic', 'semi conscious'],
+  pregnancy_bleeding: ['bleeding during pregnancy', 'vaginal bleeding', 'pregnancy bleed'],
+  nausea: ['nausea', 'nauseous', 'ji machlana'],
+  vomiting: ['vomiting', 'vomit', 'throwing up', 'ulti'],
+  headache_mild: ['headache', 'head pain', 'sir dard'],
+  dizziness: ['dizzy', 'dizziness', 'chakkar'],
+  sore_throat: ['sore throat', 'throat pain', 'gala dard'],
+  fatigue: ['fatigue', 'weakness', 'very tired', 'kamzori'],
+  back_pain_mild: ['back pain', 'backache', 'kamar dard'],
+  child_high_fever: ['child fever', 'baby fever', 'infant fever', 'bacha bukhar'],
+};
+
+const RED_FLAGS = [
+  ['chest_pain', 'arm_pain_left'],
+  ['chest_pain', 'jaw_pain'],
+  ['chest_pain', 'shortness_of_breath'],
+  ['facial_drooping', 'arm_weakness_sudden'],
+  ['facial_drooping', 'speech_difficulty'],
+  ['seizure'],
+  ['loss_of_consciousness'],
+  ['coughing_blood'],
+  ['vomiting_blood'],
+  ['anaphylaxis_signs'],
+  ['throat_swelling'],
+  ['very_low_spo2'],
+  ['altered_mental_status'],
+  ['pregnancy_bleeding'],
+  ['rash_petechial'],
+];
+
+function extractSymptoms(text) {
+  const lower = text.toLowerCase();
+  const found = [];
+  for (const [token, kws] of Object.entries(SYMPTOM_MAP)) {
+    if (kws.some(kw => lower.includes(kw))) found.push(token);
+  }
+  return found;
+}
+
+function applyVitalFlags(symptoms, vitals) {
+  if (!vitals) return symptoms;
+  const s = [...symptoms];
+  if (vitals.spo2 && parseInt(vitals.spo2) < 90) s.push('very_low_spo2');
+  if (vitals.systolic && parseInt(vitals.systolic) < 80) s.push('very_low_bp');
+  if (vitals.temp && parseFloat(vitals.temp) > 39.5) s.push('very_high_temp');
+  if (vitals.heart_rate && parseInt(vitals.heart_rate) > 130) s.push('very_high_hr');
+  return [...new Set(s)];
+}
+
+function classify(symptoms, age, sex) {
+  // Red flag check
+  for (const pattern of RED_FLAGS) {
+    if (pattern.every(s => symptoms.includes(s))) {
+      return {
+        urgency: 'EMERGENCY',
+        confidence: 0.97,
+        action: '🔴 EMERGENCY: Transfer to hospital IMMEDIATELY. Do not wait. Alert receiving facility if possible.',
+        explanation: getExplanation('EMERGENCY', symptoms, age, sex),
+        needsReview: false,
+      };
+    }
+  }
+
+  const urgentSet = ['high_fever','rash_with_fever','rash_petechial','severe_abdominal_pain','vomiting_blood','child_high_fever','confusion','very_high_hr','very_high_temp'];
+  if (urgentSet.some(s => symptoms.includes(s))) {
+    return {
+      urgency: 'URGENT',
+      confidence: 0.83,
+      action: '🟡 URGENT: Patient must see a doctor within 2–4 hours. Do not send home. Recheck vitals every 30 minutes.',
+      explanation: getExplanation('URGENT', symptoms, age, sex),
+      needsReview: false,
+    };
+  }
+
+  const confidence = symptoms.length > 0 ? 0.72 : 0.55;
+  return {
+    urgency: 'NON_URGENT',
+    confidence,
+    action: '🟢 NON-URGENT: Manage at clinic or provide home care. Follow up in 24–48 hours. Return immediately if symptoms worsen.',
+    explanation: getExplanation('NON_URGENT', symptoms, age, sex),
+    needsReview: confidence < 0.70,
+  };
+}
+
+function getExplanation(urgency, symptoms, age, sex) {
+  const explanations = {
+    EMERGENCY: {
+      default: 'This symptom combination indicates a potentially life-threatening emergency requiring immediate evaluation.',
+      chest_pain_arm_pain_left: 'Symptoms are consistent with possible acute cardiac event (myocardial infarction). Time-critical: transfer within 90 minutes is the gold standard.',
+      facial_drooping_arm_weakness_sudden: 'This matches the FAST stroke criteria. Time = brain: every minute, 1.9 million neurons are lost. Emergency transfer required.',
+      seizure: 'Active or recent seizure requires immediate evaluation to identify cause and prevent status epilepticus.',
+      loss_of_consciousness: 'Loss of consciousness — assess airway, breathing, circulation immediately. Do not leave patient unattended.',
+      pregnancy_bleeding: 'Vaginal bleeding in pregnancy requires emergency obstetric evaluation. Both maternal and fetal lives at risk.',
+    },
+    URGENT: {
+      default: 'Symptoms indicate a condition requiring medical evaluation within 2–4 hours.',
+      high_fever: 'In Indian context, high fever requires evaluation for dengue, malaria, typhoid. Avoid NSAIDs if dengue suspected.',
+      rash_with_fever: 'Fever with rash in India — consider dengue (check for petechiae), chikungunya. Watch for dengue warning signs.',
+      severe_abdominal_pain: 'Severe abdominal pain may indicate surgical emergency. Physician evaluation and potentially imaging needed.',
+    },
+    NON_URGENT: {
+      default: 'Current symptoms do not indicate immediate danger. Supportive care and monitoring are appropriate.',
+    }
+  };
+
+  const map = explanations[urgency];
+  for (const [key, text] of Object.entries(map)) {
+    if (key === 'default') continue;
+    const keys = key.split('_and_');
+    if (keys.every(k => symptoms.some(s => s.includes(k)))) {
+      let result = text;
+      if (age < 5) result += ` Pediatric patient (${age}yo) — lower escalation threshold applies.`;
+      if (age > 70) result += ` Elderly patient (${age}yo) — atypical presentations common. When in doubt, escalate.`;
+      return result;
+    }
+  }
+
+  let result = map.default;
+  if (age < 5) result += ` Young child (${age}yo): children deteriorate faster — re-evaluate frequently.`;
+  if (age > 70) result += ` Elderly patient (${age}yo): may underreport symptoms. Lower threshold for escalation.`;
+  return result;
+}
+
+// ── MAIN ASSESSMENT ──
+async function runAssessment() {
+  const age = parseInt(document.getElementById('age').value);
+  const sex = document.getElementById('sex').value;
+  const complaint = document.getElementById('complaint').value.trim();
+
+  // Validation
+  if (!age || age < 0 || age > 120) { alert('Please enter a valid patient age.'); return; }
+  if (!sex) { alert('Please select patient sex.'); return; }
+  if (!complaint) { alert('Please describe the patient\'s symptoms.'); return; }
+
+  const btn = document.getElementById('assess-btn');
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  await new Promise(r => setTimeout(r, 800)); // Simulate processing
+
+  const vitals = {
+    systolic: document.getElementById('systolic').value,
+    heart_rate: document.getElementById('heart_rate').value,
+    spo2: document.getElementById('spo2').value,
+    temp: document.getElementById('temp').value,
+  };
+
+  let symptoms = extractSymptoms(complaint);
+  symptoms = applyVitalFlags(symptoms, vitals);
+
+  const result = classify(symptoms, age, sex);
+  const caseData = { age, sex, complaint, symptoms, result, timestamp: new Date() };
+  sessionCases.unshift(caseData);
+
+  showResult(result, symptoms, age, sex);
+  updateHistory();
+
+  btn.classList.remove('loading');
+  btn.disabled = false;
+}
+
+function showResult(result, symptoms, age, sex) {
+  document.getElementById('form-section').style.display = 'none';
+  const resultEl = document.getElementById('result');
+  resultEl.style.display = 'block';
+
+  const card = document.getElementById('result-card');
+  card.className = 'result-card ' + result.urgency;
+
+  const icons = { EMERGENCY: '🚨', URGENT: '⚠️', NON_URGENT: '✅' };
+  const subtitles = {
+    EMERGENCY: 'Immediate action required',
+    URGENT: 'Evaluation within 2–4 hours',
+    NON_URGENT: 'Routine care appropriate'
+  };
+
+  document.getElementById('result-icon').textContent = icons[result.urgency];
+  document.getElementById('result-level').textContent = result.urgency.replace('_', ' ');
+  document.getElementById('result-subtitle').textContent = subtitles[result.urgency];
+  document.getElementById('result-action').textContent = result.action;
+  document.getElementById('result-explanation').textContent = result.explanation;
+
+  const pct = Math.round(result.confidence * 100);
+  document.getElementById('confidence-text').textContent = pct + '%';
+  setTimeout(() => {
+    document.getElementById('confidence-fill').style.width = pct + '%';
+  }, 100);
+
+  const sympEl = document.getElementById('result-symptoms');
+  sympEl.innerHTML = symptoms.length > 0
+    ? symptoms.map(s => `<span class="symptom-tag">${s.replace(/_/g,' ')}</span>`).join('')
+    : '<span class="symptom-tag">no specific symptoms detected</span>';
+
+  const reviewEl = document.getElementById('review-warning');
+  reviewEl.style.display = result.needsReview ? 'flex' : 'none';
+
+  const flags = document.getElementById('result-flags');
+  const now = new Date();
+  flags.innerHTML = `
+    <span class="flag time">⏱ ${now.toLocaleTimeString()}</span>
+    <span class="flag time">👤 ${age}yo ${sex}</span>
+    ${!isOnline ? '<span class="flag offline">📴 Offline Classification</span>' : ''}
+    ${result.needsReview ? '<span class="flag review">⚠ Review Required</span>' : ''}
+  `;
+
+  resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function newCase() {
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('form-section').style.display = 'block';
+  document.getElementById('complaint').value = '';
+  document.getElementById('age').value = '';
+  document.getElementById('sex').value = '';
+  document.querySelectorAll('.chip.selected').forEach(c => c.classList.remove('selected'));
+  selectedChips = [];
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateHistory() {
+  const list = document.getElementById('history-list');
+  if (sessionCases.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:14px;padding:16px 0">No cases yet.</div>';
+    return;
+  }
+
+  list.innerHTML = sessionCases.map((c, i) => `
+    <div class="history-item" onclick="showHistoryCase(${i})">
+      <div class="history-dot ${c.result.urgency}"></div>
+      <div class="history-meta">
+        <strong>${c.age}yo ${c.sex} — ${c.complaint.slice(0, 60)}${c.complaint.length > 60 ? '...' : ''}</strong>
+        <span>${c.timestamp.toLocaleTimeString()} · ${c.symptoms.length} symptoms detected</span>
+      </div>
+      <span class="history-badge ${c.result.urgency}">${c.result.urgency.replace('_',' ')}</span>
+    </div>
+  `).join('');
+}
+
+function showHistoryCase(index) {
+  const c = sessionCases[index];
+  showResult(c.result, c.symptoms, c.age, c.sex);
+}
+
+// Handle Enter key in form
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.ctrlKey) runAssessment();
+});
+</script>
+</body>
+</html>
