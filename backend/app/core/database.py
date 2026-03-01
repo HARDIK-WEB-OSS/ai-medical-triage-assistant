@@ -24,5 +24,5 @@ def get_db():
 
 def create_tables():
     """Create all tables on startup."""
-    from app.models import patient, case  # noqa: F401 - imports register models
+    from app.models import case  # noqa: F401 # noqa: F401 - imports register models
     Base.metadata.create_all(bind=engine)
