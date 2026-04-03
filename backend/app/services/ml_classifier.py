@@ -64,22 +64,39 @@ URGENCY_REVERSE = {"NON_URGENT": 0, "URGENT": 1, "EMERGENCY": 2}
 
 # Rule-based RED FLAG patterns (override model for critical safety)
 RED_FLAG_PATTERNS = [
+    # Cardiac
     ["chest_pain", "arm_pain_left"],
     ["chest_pain", "jaw_pain"],
     ["chest_pain", "shortness_of_breath"],
+    # Stroke (FAST)
     ["facial_drooping", "arm_weakness_sudden"],
     ["facial_drooping", "speech_difficulty"],
+    # Neurological
     ["seizure"],
     ["loss_of_consciousness"],
+    # Bleeding
     ["coughing_blood"],
-    ["vomiting_blood"],
+    ["vomiting_blood"],        # ← BUG FIX: was missing!
+    # Allergic/Airway
     ["anaphylaxis_signs"],
     ["throat_swelling"],
+    # Vitals
     ["very_low_spo2"],
     ["altered_mental_status"],
+    # Pediatric
     ["infant_not_feeding", "child_high_fever"],
+    ["bulging_fontanelle"],    # ← NEW: infant meningitis
+    # Obstetric
     ["pregnancy_bleeding"],
+    ["reduced_fetal_movement"], # ← NEW: fetal distress
+    # Trauma
     ["head_injury", "loss_of_consciousness_trauma"],
+    # Sepsis indicator
+    ["rash_petechial"],        # ← NEW: meningococcal sepsis
+    # Poisoning
+    ["toxic_ingestion"],       # ← NEW: overdose/poisoning
+    # Hyperpyrexia
+    ["very_high_temp"],        # ← NEW: temp >41°C
 ]
 
 
