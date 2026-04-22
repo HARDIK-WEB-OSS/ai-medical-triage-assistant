@@ -34,7 +34,7 @@
 │  │                  TRIAGE ENGINE                            │  │
 │  │                                                           │  │
 │  │  1. Symptom Extractor (NLP)                              │  │
-│  │     └─ Keyword + regex matching against 60+ symptom      │  │
+│  │     └─ Keyword + regex matching against 80 symptom      │  │
 │  │        vocabulary → standardized symptom token list      │  │
 │  │                                                           │  │
 │  │  2. ML Classifier (XGBoost) ← OFFLINE CAPABLE            │  │
@@ -181,4 +181,5 @@ LLM for explanation: GPT-4o (optional — falls back to rule-based)
 - No patient PII in ML training pipeline
 - Every AI decision logged with full audit trail
 - Doctor override recorded for model improvement
+- Confidence threshold (0.70) as safety gate
 - Confidence threshold (0.70) as safety gate
